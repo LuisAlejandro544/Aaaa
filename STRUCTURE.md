@@ -22,7 +22,9 @@ SpotLocal/
 │   │   │   │   │   ├── ai/
 │   │   │   │   │   │   ├── StemSeparatorEngine.kt# Coordinador del estado de separación de 4-Stems (Voces, Batería, Bajo, Melodía) y Auto-Masterizador
 │   │   │   │   │   │   ├── StemMode.kt           # Enums y data classes para los modos y sliders de ganancia de 4 Stems
-│   │   │   │   │   │   ├── StemModelManager.kt   # Gestor y descargador asíncrono del modelo ONNX 18.5 MB desde Cloudflare Pages
+│   │   │   │   │   │   ├── StemModelManager.kt   # Gestor y descargador asíncrono de los 4 modelos TFLite FP16 desde GitHub Release v1.0
+│   │   │   │   │   │   ├── TfliteInferenceRunner.kt # Ejecutor de inferencias TensorFlow Lite (TFLite 4-Stems: Voces UVR MDX, Bajo, Batería, Melodía Kuielab) acelerado por GPU/NNAPI
+│   │   │   │   │   │   ├── AudioDecoderPipeline.kt # Pipeline de decodificación de audio multiformato (MP3/FLAC/WAV/AAC) y espectrogramas STFT
 │   │   │   │   │   │   └── OnnxInferenceRunner.kt# Ejecutor modular de inferencias ONNX Runtime v2 (Mobile-UNet 4-Stem HD 18.5MB)
 │   │   │   │   │   ├── db/
 │   │   │   │   │   │   ├── TrackEntity.kt        # Entidad de canción importada
@@ -75,6 +77,8 @@ SpotLocal/
 │   │   │   │   │   │   ├── DebugLogConsoleModal.kt # Consola modal de logs en vivo para la APK Debug
 │   │   │   │   │   │   ├── TrackOptionsDialog.kt # Modal de opciones de canción (Limpieza ID3, Portada, Favoritos)
 │   │   │   │   │   │   ├── ImportExportDialog.kt # Diálogos de creación de listas e info
+│   │   │   │   │   │   ├── dialogs/
+│   │   │   │   │   │   │   └── ModelDownloadPromptDialog.kt # Modal emergente al inicio para consultar la descarga de los 4 modelos TFLite desde GitHub Release v1.0
 │   │   │   │   │   │   ├── library/
 │   │   │   │   │   │   │   └── DuplicateDetectorModal.kt # Modal interactivo para escanear y eliminar duplicados acústicos
 │   │   │   │   │   │   └── player/               # Módulos descomprimidos del reproductor pantalla completa

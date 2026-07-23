@@ -18,9 +18,11 @@ SpotLocal es una aplicación Android nativa diseñada para reproducir música lo
   - Algoritmo de distancia de Levenshtein y normalización diacrítica en `RustFuzzySearchEngine` que permite encontrar canciones en la biblioteca tolerando errores ortográficos o faltas de acentos.
 - 🖼️ **Parser Directo de Carátulas Incrustadas (ID3v2.4 / FLAC / OGG)**:
   - Extracción directa e inspección de marcos APIC / PICTURE de metadatos mediante `RustMetadataParser` prioritario en `AudioImporter`, convirtiéndolas a WebP lossless.
-- 🤖 **Descargador de Modelo IA 4-Stem ONNX HD (18.5 MB) desde Cloudflare Pages**:
-  - Módulo `StemModelManager` e integración en el mezclador del reproductor `PlayerStemSelector`.
-  - Permite verificar el estado del modelo local y descargarlo/actualizarlo dinámicamente desde un servidor CDN de Cloudflare Pages (`mobile_unet_4stems_hd.onnx` de 18.5 MB) con porcentaje de progreso en vivo, liberando peso inicial del APK.
+- 🤖 **Descargador de los 4 Modelos IA TFLite FP16 (~75 MB Total / 74.9 MB) desde GitHub Releases & Motor Optimizado TensorFlow Lite**:
+  - Módulo `StemModelManager`, diálogo interactivo de bienvenida `ModelDownloadPromptDialog` e integración en el mezclador del reproductor `PlayerStemSelector`.
+  - Descarga los 4 modelos de precisión FP16 (`uvr_mdx_voc_ft_fp16.tflite`, `kuielab_a_bass_fp16.tflite`, `kuielab_a_drums_fp16.tflite`, `kuielab_a_other_fp16.tflite`) directamente desde GitHub Release v1.0 (`https://github.com/LuisAlejandro544/Modelos/releases/tag/v1.0`).
+  - Pregunta al usuario de manera opcional y no intrusiva al entrar a la app si desea descargar los archivos para la separación local de audio sin internet, descargando en segundo plano con indicador de progreso. Incluye enlace directo a la release de GitHub para total confianza.
+  - Módulo `TfliteInferenceRunner` acelerado por GPU/NNAPI y pipeline `AudioDecoderPipeline` con decodificación `MediaCodec` y espectrogramas STFT para compatibilidad instantánea con archivos MP3, WAV, FLAC, AAC y OGG.
 - 🎬 **Video a Música + Video de Fondo (Canvas Sincronizado Asíncrono)**:
   - Función para importar archivos de video (MP4/MKV) como canciones normales de la biblioteca con un solo toque desde el botón de la barra superior.
   - Procesamiento completamente asíncrono en segundo plano (`Dispatchers.IO`) optimizado con copiado de flujo por bloques de 64KB y extracción resiliente de fotogramas WebP para videos largos y de alta definición 4K.

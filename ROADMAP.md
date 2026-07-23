@@ -62,9 +62,10 @@ Este documento detalla la hoja de ruta y planificación futura para la evolució
 
 ## 📌 Fase 3: Integración de IA & Python (Completado ✅)
 - [x] Módulo `python_ai/` con scripts `stem_separator.py`, `model_config.py`, `audio_processor.py` y `export_onnx.py`.
-- [x] **Evolución del Motor IA a 4 Stems HD & Descargador desde Servidor**:
+- [x] **Evolución del Motor IA a 4 Stems HD & Motor Optimizado TensorFlow Lite**:
   - Modelo ONNX Runtime v2 (Mobile-UNet 4-Stem HD 18.5MB) en `OnnxInferenceRunner.kt`.
-  - Módulo `StemModelManager.kt` para descarga/actualización asíncrona del modelo de 18.5 MB desde un CDN de Cloudflare Pages con progreso en tiempo real.
+  - Motor `TfliteInferenceRunner.kt` optimizado para TFLite acelerado por GPU/NNAPI y pipeline de decodificación `AudioDecoderPipeline.kt` para MP3, WAV, FLAC, AAC y OGG con espectrogramas STFT.
+  - Módulo `StemModelManager.kt` y diálogo `ModelDownloadPromptDialog.kt` para consultar al usuario al ingresar a la app y descargar asincrónicamente los 4 modelos TFLite FP16 (`uvr_mdx_voc_ft_fp16.tflite`, `kuielab_a_bass_fp16.tflite`, `kuielab_a_drums_fp16.tflite`, `kuielab_a_other_fp16.tflite`, ~75 MB total / 74.9 MB) directamente desde GitHub Release v1.0 (`https://github.com/LuisAlejandro544/Modelos/releases/tag/v1.0`), con progreso en vivo en segundo plano y enlace transparente de confianza.
   - Separación aislada en tiempo real de **Voces, Batería/Percusión, Bajo/Sub-Bass y Melodía/Teclados**.
 - [x] **Auto-Masterizador por Análisis Espectral IA**:
   - Ecualización dinámica y ajuste automático de sonoridad para prevenir saturaciones y clipping al mezclar stems.

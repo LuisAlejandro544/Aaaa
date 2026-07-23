@@ -14,16 +14,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.ai.StemModelManager
 import com.example.data.db.PlaylistEntity
 import com.example.data.db.TrackEntity
+import com.example.ui.components.dialogs.ModelDownloadPromptDialog
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.PlayerFullScreen
@@ -33,6 +38,7 @@ import com.example.ui.theme.SpotifyBlack
 import com.example.ui.viewmodel.PlayerViewModel
 import com.example.ui.viewmodel.PlaylistDetailTarget
 import com.example.ui.viewmodel.SpotifyTab
+import kotlinx.coroutines.launch
 
 private data class PlaylistDetailInfo(
     val title: String,
@@ -72,6 +78,8 @@ fun SpotLocalMainScaffold(
     onPickCanvasVideo: (TrackEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var showDebugConsole by remember { mutableStateOf(false) }
 
     val openedPlaylistDetail by viewModel.openedPlaylistDetail.collectAsStateWithLifecycle()
@@ -103,6 +111,11 @@ fun SpotLocalMainScaffold(
     val importVideoProgressText by viewModel.importVideoProgressText.collectAsStateWithLifecycle()
 
     val volumeState by viewModel.volumeState.collectAsStateWithLifecycle()
+    val modelDownloadStatus by StemModelManager.status.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        StemModelManager.checkLocalModels(context)
+    }
 
     Box(
         modifier = modifier
@@ -335,6 +348,21 @@ fun SpotLocalMainScaffold(
                 onPlayTrack = { viewModel.playTrack(it) },
                 onDeleteTrack = { viewModel.deleteDuplicateTrack(it) },
                 onDismiss = { showDuplicateModal = false }
+            )
+        }
+
+        // Initial Entry Dialog: Model Download Prompt Dialog
+        if (modelDownloadStatus.showPromptDialog) {
+            ModelDownloadPromptDialog(
+                status = modelDownloadStatus,
+                onAcceptDownload = {
+                    coroutineScope.launch {
+                        StemModelManager.downloadAllModels(context)
+                    }
+                },
+                onDecline = {
+                    StemModelManager.dismissPromptDialog(context)
+                }
             )
         }
 

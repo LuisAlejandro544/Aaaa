@@ -1,5 +1,7 @@
 package com.example.data.ai
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,6 +11,7 @@ object StemSeparatorEngine {
 
     private const val TAG = "StemSeparatorEngine"
     private val inferenceRunner = OnnxInferenceRunner()
+    private val tfliteRunner = TfliteInferenceRunner()
 
     private val _separationState = MutableStateFlow(StemSeparationState())
     val separationState: StateFlow<StemSeparationState> = _separationState.asStateFlow()
@@ -72,8 +75,32 @@ object StemSeparatorEngine {
             isProcessing = true,
             progressPercent = 10
         )
-        Log.i(TAG, "Starting ONNX v2 4-Stem separation AI model for track: $trackTitle")
+        Log.i(TAG, "Starting ONNX v2 / TFLite 4-Stem separation AI model for track: $trackTitle")
         inferenceRunner.runInference(trackTitle)
+        tfliteRunner.runInference(trackTitle)
+        _separationState.value = _separationState.value.copy(
+            isProcessing = false,
+            progressPercent = 100
+        )
+        onComplete()
+    }
+
+    suspend fun processTrackStemsTflite(
+        context: Context,
+        audioUri: Uri,
+        trackTitle: String,
+        onComplete: () -> Unit = {}
+    ) {
+        _separationState.value = _separationState.value.copy(
+            isProcessing = true,
+            progressPercent = 5
+        )
+        Log.i(TAG, "Iniciando pipeline TFLite con decodificación multiformato (MP3/FLAC/WAV/AAC) para: $trackTitle")
+        tfliteRunner.runTfliteInferenceOnAudio(context, audioUri, trackTitle) { progress ->
+            _separationState.value = _separationState.value.copy(
+                progressPercent = progress
+            )
+        }
         _separationState.value = _separationState.value.copy(
             isProcessing = false,
             progressPercent = 100
@@ -83,3 +110,4 @@ object StemSeparatorEngine {
 
     private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 }
+

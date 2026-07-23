@@ -1,5 +1,7 @@
 package com.example.ui.components.player
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,11 +22,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -44,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import com.example.data.ai.StemMode
+import com.example.data.ai.StemModelManager
 import com.example.data.ai.StemSeparationState
 import com.example.data.ai.StemSeparatorEngine
 import com.example.ui.theme.SpotifyGreen
@@ -84,14 +90,14 @@ fun PlayerStemSelector(
                 )
                 Column {
                     Text(
-                        text = "Separador IA 4-Stems v2",
+                        text = "Separador IA 4-Stems TFLite",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = SpotifyTextWhite
                         )
                     )
                     Text(
-                        text = "Aislamiento de voces e instrumentos ONNX HD",
+                        text = "Voces UVR MDX + Kuielab (Bass, Drums, Other)",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 11.sp,
                             color = SpotifyGreen
@@ -127,7 +133,7 @@ fun PlayerStemSelector(
             }
         }
 
-        // Stem mode preset chips in a horizontal scrollable row
+        // Stem mode preset chips
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
@@ -162,14 +168,14 @@ fun PlayerStemSelector(
             }
         }
 
-        // Expandable Interactive 4-Stem Fader Sliders & AI Masterizer Button
+        // Expandable Interactive 4-Stem Sliders & Model Downloader
         AnimatedVisibility(visible = showStemMixer) {
             val context = androidx.compose.ui.platform.LocalContext.current
             val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
-            val modelStatus by com.example.data.ai.StemModelManager.status.collectAsStateWithLifecycle()
+            val modelStatus by StemModelManager.status.collectAsStateWithLifecycle()
 
             androidx.compose.runtime.LaunchedEffect(Unit) {
-                com.example.data.ai.StemModelManager.checkLocalModel(context)
+                StemModelManager.checkLocalModels(context)
             }
 
             Column(
@@ -178,7 +184,7 @@ fun PlayerStemSelector(
                     .padding(top = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Cloudflare Pages 18.5 MB ONNX Model Download status card
+                // GitHub Release v1.0 TFLite 4-Model Status Card
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -194,16 +200,32 @@ fun PlayerStemSelector(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (modelStatus.isDownloaded) "Modelo ONNX HD (18.5 MB) Instalado" else "Modelo ONNX HD (18.5 MB) Servidor",
+                                text = if (modelStatus.isDownloaded) "Modelos TFLite FP16 Instalados" else "Modelos IA TFLite (~75 MB)",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (modelStatus.isDownloaded) SpotifyGreen else SpotifyTextWhite
                                 )
                             )
-                            if (modelStatus.isDownloading) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(StemModelManager.GITHUB_RELEASE_URL))
+                                    context.startActivity(intent)
+                                }
+                            ) {
                                 Text(
-                                    text = "${modelStatus.progressPercent}%",
-                                    style = MaterialTheme.typography.labelSmall.copy(color = SpotifyGreen, fontWeight = FontWeight.Bold)
+                                    text = "GitHub Releases",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = SpotifyGreen,
+                                        fontSize = 10.sp
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.OpenInNew,
+                                    contentDescription = "GitHub",
+                                    tint = SpotifyGreen,
+                                    modifier = Modifier.size(12.dp)
                                 )
                             }
                         }
@@ -216,11 +238,23 @@ fun PlayerStemSelector(
                             )
                         )
 
-                        if (!modelStatus.isDownloaded || modelStatus.isDownloading) {
+                        if (modelStatus.isDownloading) {
+                            LinearProgressIndicator(
+                                progress = { modelStatus.progressPercent / 100f },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(CircleShape),
+                                color = SpotifyGreen,
+                                trackColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        }
+
+                        if (!modelStatus.isDownloaded) {
                             Button(
                                 onClick = {
                                     coroutineScope.launch {
-                                        com.example.data.ai.StemModelManager.downloadModelFromUrl(context)
+                                        StemModelManager.downloadAllModels(context)
                                     }
                                 },
                                 enabled = !modelStatus.isDownloading,
@@ -230,8 +264,15 @@ fun PlayerStemSelector(
                                     .height(36.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDownload,
+                                    contentDescription = "Descargar",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (modelStatus.isDownloading) "Descargando..." else "Descargar Modelo (18.5 MB) desde Cloudflare",
+                                    text = if (modelStatus.isDownloading) "Descargando..." else "Descargar 4 Modelos TFLite (~75 MB)",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = Color.Black
@@ -251,7 +292,7 @@ fun PlayerStemSelector(
                 )
 
                 StemGainSlider(
-                    label = "Voces",
+                    label = "Voces (UVR MDX)",
                     valueDb = stemState.vocalGainDb,
                     onValueChange = { db ->
                         StemSeparatorEngine.setIndividualStemGains(db, stemState.drumsGainDb, stemState.bassGainDb, stemState.otherGainDb)
@@ -259,7 +300,7 @@ fun PlayerStemSelector(
                 )
 
                 StemGainSlider(
-                    label = "Batería / Percusión",
+                    label = "Batería / Percusión (Kuielab)",
                     valueDb = stemState.drumsGainDb,
                     onValueChange = { db ->
                         StemSeparatorEngine.setIndividualStemGains(stemState.vocalGainDb, db, stemState.bassGainDb, stemState.otherGainDb)
@@ -267,7 +308,7 @@ fun PlayerStemSelector(
                 )
 
                 StemGainSlider(
-                    label = "Bajo / Sub-Bass",
+                    label = "Bajo / Sub-Bass (Kuielab)",
                     valueDb = stemState.bassGainDb,
                     onValueChange = { db ->
                         StemSeparatorEngine.setIndividualStemGains(stemState.vocalGainDb, stemState.drumsGainDb, db, stemState.otherGainDb)
@@ -275,7 +316,7 @@ fun PlayerStemSelector(
                 )
 
                 StemGainSlider(
-                    label = "Melodía / Instrumentos",
+                    label = "Melodía / Instrumentos (Kuielab)",
                     valueDb = stemState.otherGainDb,
                     onValueChange = { db ->
                         StemSeparatorEngine.setIndividualStemGains(stemState.vocalGainDb, stemState.drumsGainDb, stemState.bassGainDb, db)
@@ -356,4 +397,3 @@ private fun StemGainSlider(
         )
     }
 }
-
