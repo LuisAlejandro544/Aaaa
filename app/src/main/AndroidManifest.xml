@@ -49,6 +49,12 @@
         </activity>
 
         <service
+            android:name=".data.ai.ModelDownloadService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
             android:name=".player.MediaPlaybackService"
             android:enabled="true"
             android:exported="false"

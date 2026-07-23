@@ -114,6 +114,8 @@ object StemModelManager {
                 "Modelos IA pendientes ($downloadedCount/4 descargados). Puedes descargarlos sin interrupciones."
             }
         )
+
+        StemSeparatorEngine.updateTfliteEngineState(allDownloaded)
         return allDownloaded
     }
 
@@ -127,7 +129,17 @@ object StemModelManager {
         _status.value = _status.value.copy(showPromptDialog = true)
     }
 
-    suspend fun downloadAllModels(context: Context): Boolean = withContext(Dispatchers.IO) {
+    suspend fun downloadAllModels(context: Context): Boolean {
+        if (_status.value.isDownloading) return false
+        ModelDownloadService.startDownload(context)
+        return true
+    }
+
+    suspend fun downloadAllModelsWithNotification(
+        context: Context,
+        onProgress: (modelName: String, percent: Int, currentMb: Float, totalMb: Float, statusMsg: String) -> Unit,
+        onComplete: (Boolean) -> Unit
+    ): Boolean = withContext(Dispatchers.IO) {
         val modelsDir = getModelsDir(context)
 
         _status.value = _status.value.copy(
@@ -149,10 +161,11 @@ object StemModelManager {
                 continue
             }
 
+            val statusMsg = "Descargando modelo ${index + 1}/$totalModels: ${model.label}..."
             _status.value = _status.value.copy(
                 currentModelIndex = index + 1,
                 currentModelName = model.filename,
-                statusMessage = "Descargando model ${index + 1}/$totalModels: ${model.label}..."
+                statusMessage = statusMsg
             )
 
             val downloadedOk = downloadSingleFile(
@@ -164,12 +177,14 @@ object StemModelManager {
                     val currentMb = currentBytes / (1024f * 1024f)
                     val totalMb = if (totalBytes > 0) totalBytes / (1024f * 1024f) else model.estimatedSizeMb
 
+                    val progressMsg = "Descargando ${model.filename} (${index + 1}/$totalModels): $filePercent% (${String.format("%.1f", currentMb)}MB / ${String.format("%.1f", totalMb)}MB)"
                     _status.value = _status.value.copy(
                         progressPercent = overallPercent,
                         downloadedSizeMb = currentMb,
                         totalSizeMb = totalMb,
-                        statusMessage = "Descargando ${model.filename} (${index + 1}/$totalModels): $filePercent% (${String.format("%.1f", currentMb)}MB / ${String.format("%.1f", totalMb)}MB)"
+                        statusMessage = progressMsg
                     )
+                    onProgress(model.filename, overallPercent, currentMb, totalMb, progressMsg)
                 }
             )
 
@@ -186,16 +201,21 @@ object StemModelManager {
             prefs.edit().putBoolean(KEY_USER_DISMISSED_PROMPT, true).apply()
         }
 
+        val finalMsg = if (allOk) {
+            "¡Los 4 modelos IA TFLite FP16 fueron descargados e instalados con éxito!"
+        } else {
+            "Descarga incompleta ($successCount/$totalModels instalados). Reintenta cuando tengas conexión."
+        }
+
         _status.value = _status.value.copy(
             isDownloading = false,
             isDownloaded = allOk,
             progressPercent = if (allOk) 100 else _status.value.progressPercent,
-            statusMessage = if (allOk) {
-                "¡Los 4 modelos IA TFLite FP16 fueron descargados e instalados con éxito!"
-            } else {
-                "Descarga incompleta ($successCount/$totalModels instalados). Reintenta cuando tengas conexión."
-            }
+            statusMessage = finalMsg
         )
+
+        StemSeparatorEngine.updateTfliteEngineState(allOk)
+        onComplete(allOk)
 
         Log.i(TAG, "Resultado de descarga de modelos: $successCount / $totalModels exitosos.")
         allOk

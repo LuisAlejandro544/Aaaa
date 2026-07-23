@@ -16,6 +16,18 @@ object StemSeparatorEngine {
     private val _separationState = MutableStateFlow(StemSeparationState())
     val separationState: StateFlow<StemSeparationState> = _separationState.asStateFlow()
 
+    fun updateTfliteEngineState(isLoaded: Boolean) {
+        val modelDesc = if (isLoaded) {
+            "4 Modelos TFLite FP16 Activos (~74.9 MB): UVR MDX Vocals + Kuielab (Bass, Drums, Other)"
+        } else {
+            "TFLite 4-Stem Fallback Filter Engine"
+        }
+        _separationState.value = _separationState.value.copy(
+            modelName = modelDesc
+        )
+        Log.i(TAG, "Estado de motor TFLite actualizado: isLoaded=$isLoaded ($modelDesc)")
+    }
+
     fun setStemMode(mode: StemMode) {
         val (vocalGain, drumsGain, bassGain, otherGain) = when (mode) {
             StemMode.ORIGINAL -> Quadruple(0f, 0f, 0f, 0f)
