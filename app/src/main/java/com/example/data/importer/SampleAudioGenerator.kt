@@ -107,7 +107,7 @@ object SampleAudioGenerator {
                 isSample = true,
                 lyrics = """
                     [00:00.80] Brisa de atardecer lo-fi
-                    [00:03.00] ♪ Separación de Voces e Instrumental por IA ♪
+                    [00:03.00] ♪ Sonido 3D Espacial y Ecualizador C++ ♪
                     [00:05.50] Guarda y edita letras en formato sincronizado LRC
                     [00:07.50] ¡Que disfrutes la música!
                 """.trimIndent()
@@ -115,10 +115,20 @@ object SampleAudioGenerator {
         )
 
         rawTracks.map { track ->
-            val classification = com.example.data.ai.AudioMoodGenreClassifier.classify(track)
+            val titleLower = track.title.lowercase()
+            val detectedGenre = when {
+                titleLower.contains("chill") || titleLower.contains("lo-fi") -> "Lo-Fi"
+                titleLower.contains("piano") -> "Instrumental"
+                else -> "Acústico"
+            }
+            val detectedMood = when {
+                titleLower.contains("chill") -> "Relajante"
+                titleLower.contains("piano") -> "Melancólico"
+                else -> "Alegre"
+            }
             track.copy(
-                mood = classification.mood,
-                genre = classification.genre
+                mood = detectedMood,
+                genre = detectedGenre
             )
         }
     }

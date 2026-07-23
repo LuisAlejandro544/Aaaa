@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -25,10 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.ai.StemModelManager
 import com.example.data.db.PlaylistEntity
 import com.example.data.db.TrackEntity
-import com.example.ui.components.dialogs.ModelDownloadPromptDialog
+import com.example.player.SleepTimerOption
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.PlayerFullScreen
@@ -111,11 +113,17 @@ fun SpotLocalMainScaffold(
     val importVideoProgressText by viewModel.importVideoProgressText.collectAsStateWithLifecycle()
 
     val volumeState by viewModel.volumeState.collectAsStateWithLifecycle()
-    val modelDownloadStatus by StemModelManager.status.collectAsStateWithLifecycle()
+    val sleepTimerOption by viewModel.sleepTimerOption.collectAsStateWithLifecycle()
+    val sleepTimerRemainingMs by viewModel.sleepTimerRemainingMs.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
-        StemModelManager.checkLocalModels(context)
-    }
+    val aiSettings by viewModel.aiSettingsState.collectAsStateWithLifecycle()
+    val showSmartVibeDialog by viewModel.showSmartVibeDialog.collectAsStateWithLifecycle()
+    val showLyricsExplanationSheet by viewModel.showLyricsExplanationSheet.collectAsStateWithLifecycle()
+    val explanationModalType by viewModel.explanationModalType.collectAsStateWithLifecycle()
+    val translatedLyrics by viewModel.translatedLyrics.collectAsStateWithLifecycle()
+    val isTranslatingLyrics by viewModel.isTranslatingLyrics.collectAsStateWithLifecycle()
+    val songExplanation by viewModel.songExplanation.collectAsStateWithLifecycle()
+    val isExplainingSong by viewModel.isExplainingSong.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier
@@ -229,12 +237,30 @@ fun SpotLocalMainScaffold(
                                     viewModel.scanDuplicates()
                                 },
                                 onCleanTagsBatchClick = { viewModel.cleanAllLibraryTags() },
+                                isVibeGenEnabled = aiSettings.isVibePlaylistGeneratorEnabled,
+                                onGenerateVibePlaylistClick = { viewModel.setShowSmartVibeDialog(true) },
                                 getPlaylistTracks = { playlistId ->
                                     val tracksState = remember(playlistId, allTracks) {
                                         viewModel.getTracksForPlaylist(playlistId)
                                     }.collectAsStateWithLifecycle(emptyList())
                                     tracksState.value
                                 }
+                            )
+                        }
+                        SpotifyTab.SETTINGS -> {
+                            com.example.ui.screens.SettingsScreen(
+                                aiSettings = aiSettings,
+                                onToggleVibeGen = { viewModel.setVibeGenEnabled(it) },
+                                onToggleLyricsTranslator = { viewModel.setLyricsTranslatorEnabled(it) },
+                                onToggleVibeMatch = { viewModel.setVibeMatchEnabled(it) },
+                                onUpdateCustomApiKey = { viewModel.setCustomApiKey(it) },
+                                onSelectModel = { viewModel.setSelectedModel(it) },
+                                onCleanTags = { viewModel.cleanAllLibraryTags() },
+                                onScanDuplicates = {
+                                    showDuplicateModal = true
+                                    viewModel.scanDuplicates()
+                                },
+                                onExportLibrary = { onLaunchExportPicker() }
                             )
                         }
                     }
@@ -259,6 +285,8 @@ fun SpotLocalMainScaffold(
                 currentIndex = currentIndex,
                 playbackSpeed = playbackSpeed,
                 playbackPitch = playbackPitch,
+                sleepTimerOption = sleepTimerOption,
+                sleepTimerRemainingMs = sleepTimerRemainingMs,
                 isEqEnabled = isEqEnabled,
                 bandGainsDb = bandGainsDb,
                 eqPreset = eqPreset,
@@ -282,7 +310,11 @@ fun SpotLocalMainScaffold(
                 onRemoveFromQueue = { idx -> viewModel.removeQueueItem(idx) },
                 onSpeedChange = { speed -> viewModel.playerManager.setSpeed(speed) },
                 onPitchChange = { pitch -> viewModel.playerManager.setPitch(pitch) },
-                onStemModeSelected = { mode -> viewModel.playerManager.setStemMode(mode) },
+                onSetSleepTimer = { option, customMinutes -> viewModel.setSleepTimer(option, customMinutes) },
+                onUpdateTrackMetadata = { track, title, artist, album, genre, year ->
+                    viewModel.updateTrackMetadata(track, title, artist, album, genre, year)
+                },
+                onPickCustomCover = { track -> onPickCustomCover(track) },
                 onEqEnabledToggle = { enabled -> viewModel.playerManager.setEqEnabled(enabled) },
                 onBandGainChange = { bandIndex, gain -> viewModel.playerManager.setBandGain(bandIndex, gain) },
                 onPresetSelect = { preset -> viewModel.playerManager.setEqPreset(preset) },
@@ -295,6 +327,11 @@ fun SpotLocalMainScaffold(
                 onCrossfadeDurationChange = { sec -> viewModel.setCrossfadeDuration(sec) },
                 onVolumeNormalizerToggle = { enabled -> viewModel.setVolumeNormalizerEnabled(enabled) },
                 onTargetLufsChange = { lufs -> viewModel.setTargetLufs(lufs) },
+                isLyricsTranslatorEnabled = aiSettings.isLyricsTranslatorEnabled,
+                onTranslateLyricsClick = { track -> viewModel.translateCurrentLyrics(track) },
+                onExplainLyricsClick = { track -> viewModel.explainCurrentSongMeaning(track) },
+                isVibeMatchEnabled = aiSettings.isVibeMatchEnabled,
+                onVibeMatchClick = { track -> viewModel.generateVibeMatchQueue(track) },
                 onUpdateLyrics = { track, newLyrics -> viewModel.updateLyrics(track, newLyrics) },
                 onVolumeClick = { viewModel.showVolumeHud() },
                 onCollapse = { viewModel.setPlayerExpanded(false) }
@@ -351,18 +388,27 @@ fun SpotLocalMainScaffold(
             )
         }
 
-        // Initial Entry Dialog: Model Download Prompt Dialog
-        if (modelDownloadStatus.showPromptDialog) {
-            ModelDownloadPromptDialog(
-                status = modelDownloadStatus,
-                onAcceptDownload = {
-                    coroutineScope.launch {
-                        StemModelManager.downloadAllModels(context)
-                    }
+        // Smart Vibe Playlist Generator Dialog
+        if (showSmartVibeDialog) {
+            com.example.ui.components.dialogs.SmartVibeGeneratorDialog(
+                onGenerate = { prompt ->
+                    viewModel.generateVibePlaylist(prompt)
+                    viewModel.setShowSmartVibeDialog(false)
                 },
-                onDecline = {
-                    StemModelManager.dismissPromptDialog(context)
-                }
+                onDismiss = { viewModel.setShowSmartVibeDialog(false) }
+            )
+        }
+
+        // Lyrics AI Explanation / Translation Sheet
+        if (showLyricsExplanationSheet) {
+            val isTranslation = explanationModalType == "translation"
+            com.example.ui.components.player.LyricsExplanationSheet(
+                title = if (isTranslation) "Traducción de Letra" else "Explicación de Canción",
+                subtitle = if (isTranslation) "Traducción verso a verso" else "Análisis de significado, historia y emociones",
+                icon = if (isTranslation) androidx.compose.material.icons.Icons.Default.Language else androidx.compose.material.icons.Icons.Default.Psychology,
+                content = if (isTranslation) translatedLyrics else songExplanation,
+                isLoading = if (isTranslation) isTranslatingLyrics else isExplainingSong,
+                onDismiss = { viewModel.setShowLyricsExplanationSheet(false) }
             )
         }
 

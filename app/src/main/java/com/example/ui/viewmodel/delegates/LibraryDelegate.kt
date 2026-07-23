@@ -58,6 +58,7 @@ class LibraryDelegate(
     fun setShowCreatePlaylistDialog(show: Boolean) { _showCreatePlaylistDialog.value = show }
     fun setShowTrackOptionsDialog(track: TrackEntity?) { _showTrackOptionsDialog.value = track }
     fun setShowExportDialog(show: Boolean) { _showExportDialog.value = show }
+    fun setImportMessage(msg: String) { _importMessage.value = msg }
     fun clearImportMessage() { _importMessage.value = null }
     fun setImportingVideoState(isImporting: Boolean, text: String = "Procesando video...") {
         _isImportingVideo.value = isImporting
@@ -126,15 +127,42 @@ class LibraryDelegate(
         }
     }
 
-    fun classifyTrackMoodAndGenre(track: TrackEntity) {
+    fun updateTrackMetadata(track: TrackEntity, title: String, artist: String, album: String, genre: String, mood: String) {
         scope.launch {
-            val classification = com.example.data.ai.AudioMoodGenreClassifier.classify(track)
             val updatedTrack = track.copy(
-                mood = classification.mood,
-                genre = classification.genre
+                title = if (title.isBlank()) track.title else title,
+                artist = if (artist.isBlank()) track.artist else artist,
+                album = if (album.isBlank()) track.album else album,
+                genre = if (genre.isBlank()) null else genre,
+                mood = if (mood.isBlank()) null else mood
             )
             repository.updateTrack(updatedTrack)
-            _importMessage.value = "IA clasificó: ${classification.mood} | ${classification.genre}"
+            _importMessage.value = "Etiquetas ID3 actualizadas para '${updatedTrack.title}'."
+        }
+    }
+
+    fun classifyTrackMoodAndGenre(track: TrackEntity) {
+        scope.launch {
+            val titleLower = track.title.lowercase()
+            val detectedGenre = when {
+                titleLower.contains("rock") -> "Rock"
+                titleLower.contains("pop") -> "Pop"
+                titleLower.contains("jazz") -> "Jazz"
+                titleLower.contains("lofi") || titleLower.contains("chill") -> "Lo-Fi / Ambient"
+                titleLower.contains("electronic") || titleLower.contains("dance") -> "Electronic"
+                else -> track.genre ?: "Desconocido"
+            }
+            val detectedMood = when {
+                titleLower.contains("chill") || titleLower.contains("sleep") || titleLower.contains("relax") -> "Relajado"
+                titleLower.contains("happy") || titleLower.contains("dance") || titleLower.contains("party") -> "Enérgico"
+                else -> track.mood ?: "Neutral"
+            }
+            val updatedTrack = track.copy(
+                mood = detectedMood,
+                genre = detectedGenre
+            )
+            repository.updateTrack(updatedTrack)
+            _importMessage.value = "Clasificación detectada: $detectedMood | $detectedGenre"
         }
     }
 

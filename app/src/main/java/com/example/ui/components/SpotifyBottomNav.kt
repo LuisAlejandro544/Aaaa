@@ -8,9 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -97,6 +99,26 @@ fun SpotifyBottomNav(
                 indicatorColor = SpotifyGreen.copy(alpha = 0.2f)
             ),
             modifier = Modifier.testTag("nav_item_library")
+        )
+
+        NavigationBarItem(
+            selected = currentTab == SpotifyTab.SETTINGS,
+            onClick = { onTabSelected(SpotifyTab.SETTINGS) },
+            icon = {
+                Icon(
+                    imageVector = if (currentTab == SpotifyTab.SETTINGS) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Ajustes"
+                )
+            },
+            label = { Text("Ajustes") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = SpotifyTextWhite,
+                selectedTextColor = SpotifyTextWhite,
+                unselectedIconColor = SpotifyTextMuted,
+                unselectedTextColor = SpotifyTextMuted,
+                indicatorColor = SpotifyGreen.copy(alpha = 0.2f)
+            ),
+            modifier = Modifier.testTag("nav_item_settings")
         )
     }
 }

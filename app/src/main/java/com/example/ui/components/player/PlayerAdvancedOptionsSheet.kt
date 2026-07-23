@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,15 +39,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.ai.StemSeparationState
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Psychology
 import com.example.data.db.TrackEntity
+import com.example.player.SleepTimerOption
+import com.example.ui.theme.SpotifyBlack
 import com.example.ui.theme.SpotifyCardGrey
 import com.example.ui.theme.SpotifyGreen
 import com.example.ui.theme.SpotifyTextMuted
 import com.example.ui.theme.SpotifyTextWhite
-
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +56,8 @@ fun PlayerAdvancedOptionsSheet(
     track: TrackEntity,
     playbackSpeed: Float,
     playbackPitch: Float,
-    stemState: StemSeparationState,
+    sleepTimerOption: SleepTimerOption = SleepTimerOption.OFF,
+    sleepTimerRemainingMs: Long? = null,
     isEqEnabled: Boolean = true,
     bandGainsDb: FloatArray = floatArrayOf(0f, 0f, 0f, 0f, 0f),
     eqPreset: EqPreset = EqPreset.FLAT,
@@ -65,9 +69,12 @@ fun PlayerAdvancedOptionsSheet(
     crossfadeDurationSec: Float = 3.0f,
     isVolumeNormalizerEnabled: Boolean = true,
     targetLufs: Float = -14.0f,
+    isVibeMatchEnabled: Boolean = true,
+    onVibeMatchClick: (TrackEntity) -> Unit = {},
     onSpeedChange: (Float) -> Unit,
     onPitchChange: (Float) -> Unit,
-    onStemModeSelected: (com.example.data.ai.StemMode) -> Unit = {},
+    onOpenSleepTimer: () -> Unit = {},
+    onOpenEditMetadata: () -> Unit = {},
     onEqEnabledToggle: (Boolean) -> Unit = {},
     onBandGainChange: (Int, Float) -> Unit = { _, _ -> },
     onPresetSelect: (EqPreset) -> Unit = {},
@@ -132,6 +139,68 @@ fun PlayerAdvancedOptionsSheet(
                 }
             }
 
+            // Vibe-Match de la Canción Actual
+            if (isVibeMatchEnabled) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onVibeMatchClick(track)
+                            onDismiss()
+                        },
+                    colors = CardDefaults.cardColors(containerColor = SpotifyGreen.copy(alpha = 0.15f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Psychology,
+                                contentDescription = null,
+                                tint = SpotifyGreen,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "⚡ Vibe-Match de Canción",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = SpotifyTextWhite
+                                    )
+                                )
+                                Text(
+                                    text = "Mezcla cola continua con canciones similares",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = SpotifyTextMuted
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = SpotifyGreen
+                        ) {
+                            Text(
+                                text = "Iniciar",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = SpotifyBlack
+                                ),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             // 1. Ecualizador Avanzado C++ & Rust
             PlayerEqualizerView(
                 isEqEnabled = isEqEnabled,
@@ -165,13 +234,124 @@ fun PlayerAdvancedOptionsSheet(
                 onPitchChange = onPitchChange
             )
 
-            // 4. IA Stem Separator (Voces e Instrumental)
-            PlayerStemSelector(
-                stemState = stemState,
-                onStemModeSelected = { mode ->
-                    onStemModeSelected(mode)
+            // 4. Temporizador de Sueño Inteligente (Sleep Timer)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenSleepTimer() },
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bedtime,
+                            contentDescription = null,
+                            tint = SpotifyGreen,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Temporizador de Sueño",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = SpotifyTextWhite
+                                )
+                            )
+                            val timerText = if (sleepTimerOption == SleepTimerOption.OFF) {
+                                "Desactivado"
+                            } else if (sleepTimerRemainingMs != null && sleepTimerRemainingMs > 0) {
+                                val min = (sleepTimerRemainingMs / 1000) / 60
+                                val sec = (sleepTimerRemainingMs / 1000) % 60
+                                "Activo: %02dm %02ds (Fade-Out)".format(min, sec)
+                            } else {
+                                sleepTimerOption.label
+                            }
+                            Text(
+                                text = timerText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (sleepTimerOption != SleepTimerOption.OFF) SpotifyGreen else SpotifyTextMuted
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = SpotifyGreen.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = "Configurar",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = SpotifyGreen,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
                 }
-            )
+            }
+
+            // 5. Editor Manual de Etiquetas ID3 & Portadas
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenEditMetadata() },
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EditNote,
+                            contentDescription = null,
+                            tint = SpotifyGreen,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Editor de Etiquetas ID3 & Portada",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = SpotifyTextWhite
+                                )
+                            )
+                            Text(
+                                text = "Modifica título, artista, álbum y carátula local",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SpotifyTextMuted
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = SpotifyGreen.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = "Editar",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = SpotifyGreen,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
 
             // 5. Normalización de Volumen Automática (EBU R128 / ReplayGain)
             Card(

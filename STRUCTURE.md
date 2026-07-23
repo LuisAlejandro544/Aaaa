@@ -23,8 +23,11 @@ SpotLocal/
 │   │   │   │   │   │   ├── StemSeparatorEngine.kt# Coordinador del estado de separación de 4-Stems (Voces, Batería, Bajo, Melodía) y Auto-Masterizador
 │   │   │   │   │   │   ├── StemMode.kt           # Enums y data classes para los modos y sliders de ganancia de 4 Stems
 │   │   │   │   │   │   ├── StemModelManager.kt   # Gestor y descargador asíncrono de los 4 modelos TFLite FP16 desde GitHub Release v1.0
-│   │   │   │   │   │   ├── TfliteInferenceRunner.kt # Ejecutor de inferencias TensorFlow Lite (TFLite 4-Stems: Voces UVR MDX, Bajo, Batería, Melodía Kuielab) acelerado por GPU/NNAPI
-│   │   │   │   │   │   ├── AudioDecoderPipeline.kt # Pipeline de decodificación de audio multiformato (MP3/FLAC/WAV/AAC) y espectrogramas STFT
+│   │   │   │   │   │   ├── TfliteInferenceRunner.kt # Ejecutor de inferencias TensorFlow Lite delegando inspección a TfliteModelInspector
+│   │   │   │   │   │   ├── TfliteModelInspector.kt # Inspector modular de verificación de estado y tamaño de los 4 modelos TFLite FP16
+│   │   │   │   │   │   ├── AudioDecoderPipeline.kt # Fachada de decodificación de audio y espectrogramas STFT
+│   │   │   │   │   │   ├── AudioMediaCodecDecoder.kt # Decodificador modular MediaCodec para extracción PCM multiformato
+│   │   │   │   │   │   ├── StftSpectrogramCalculator.kt # Calculador modular de espectrogramas STFT con ventana Hann
 │   │   │   │   │   │   └── OnnxInferenceRunner.kt# Ejecutor modular de inferencias ONNX Runtime v2 (Mobile-UNet 4-Stem HD 18.5MB)
 │   │   │   │   │   ├── db/
 │   │   │   │   │   │   ├── TrackEntity.kt        # Entidad de canción importada
@@ -33,7 +36,7 @@ SpotLocal/
 │   │   │   │   │   │   ├── PlaylistDao.kt        # Data Access Object para playlists
 │   │   │   │   │   │   └── AppDatabase.kt        # Base de datos Room SQLite
 │   │   │   │   │   ├── repository/
-│   │   │   │   │   │   ├── MusicRepository.kt    # Facachada principal de repositorio
+│   │   │   │   │   │   ├── MusicRepository.kt    # Fachada principal de repositorio
 │   │   │   │   │   │   ├── PlaylistRepositoryDelegate.kt # Delegado modular para operaciones CRUD de playlists
 │   │   │   │   │   │   └── LibraryExportHelper.kt# Ayudante modular para exportación de biblioteca a JSON
 │   │   │   │   │   ├── storage/
@@ -42,7 +45,8 @@ SpotLocal/
 │   │   │   │   │   │   ├── JsonStorageDelegate.kt # Delegado modular para la sincronización del caché JSON
 │   │   │   │   │   │   └── MediaStorageDelegate.kt# Delegado modular para videos Canvas y almacenamiento multimedia
 │   │   │   │   │   ├── importer/
-│   │   │   │   │   │   ├── AudioImporter.kt      # Módulo de importación y extracción de etiquetas
+│   │   │   │   │   │   ├── AudioImporter.kt      # Fachada de importación delegando extracción de etiquetas
+│   │   │   │   │   │   ├── TrackMetadataExtractor.kt # Extractor modular de metadatos ID3/Rust y carátulas WebP
 │   │   │   │   │   │   ├── UriMetadataHelper.kt  # Ayudante modular para resolución de nombres, tamaños y formatos URI
 │   │   │   │   │   │   └── SampleAudioGenerator.kt # Generador de canciones demo e imágenes semilla WebP
 │   │   │   │   │   └── rust/
@@ -51,14 +55,18 @@ SpotLocal/
 │   │   │   │   ├── player/
 │   │   │   │   │   ├── MusicPlayerManager.kt     # Gestor modular unificado de reproducción y delegados
 │   │   │   │   │   ├── SpatialReverbEnvironment.kt # Enum de presets de Reverb 3D (Room, Hall, Cathedral, Stadium)
-│   │   │   │   │   ├── controllers/              # Controladores modulares de reproducción
+│   │   │   │   │   ├── controllers/              # Controladores modulares de reproducción y audio
 │   │   │   │   │   │   ├── QueueController.kt    # Controlador modular de colas, índices, shuffle, repetición y peekNextTrack
-│   │   │   │   │   │   └── AudioEffectsController.kt # Controlador modular de ecualizador, audio 3D, reverb spatial, crossfade y normalización
+│   │   │   │   │   │   ├── AudioEffectsController.kt # Controlador modular de ecualizador, audio 3D, reverb spatial, crossfade y normalización
+│   │   │   │   │   │   ├── EqualizerFxController.kt # Controlador modular de ecualizador de hardware y mapeo de bandas por Stem
+│   │   │   │   │   │   ├── Spatial3dAudioFxController.kt # Controlador modular de efectos Virtualizer y BassBoost 3D
+│   │   │   │   │   │   ├── ReverbFxController.kt # Controlador modular de reverberación espacial 3D HRTF
+│   │   │   │   │   │   └── PlaybackParamsController.kt # Controlador modular de parámetros de velocidad y pitch
 │   │   │   │   │   ├── VolumeController.kt       # Controlador de volumen de sistema e intercepción de hardware
 │   │   │   │   │   ├── VolumeNormalizerEngine.kt # Motor de análisis y normalización de volumen EBU R128 (LUFS)
 │   │   │   │   │   ├── PlaybackState.kt          # Definición de modos de repetición y estados de parámetros
-      │   │   │   │   ├── AudioDspEngine.kt         # Fachada del motor DSP para velocidad, pitch y efectos 3D
-│   │   │   │   │   ├── AudioFxManager.kt         # Gestor modular de hardware AudioFX (Equalizer, Virtualizer, BassBoost, Reverb)
+│   │   │   │   │   ├── AudioDspEngine.kt         # Fachada del motor DSP para velocidad, pitch y efectos 3D
+│   │   │   │   │   ├── AudioFxManager.kt         # Cooridnadador modular de hardware AudioFX
 │   │   │   │   │   ├── Audio3dSpeakerMode.kt     # Enums de modo de bocinas (Single, Dual, Headphones)
 │   │   │   │   │   ├── MediaNotificationManager.kt # Gestor de notificaciones MediaStyle en segundo plano
 │   │   │   │   │   └── MusicPlaybackService.kt   # Servicio Foreground para reproducción continua con pantalla apagada
@@ -78,14 +86,18 @@ SpotLocal/
 │   │   │   │   │   │   ├── TrackOptionsDialog.kt # Modal de opciones de canción (Limpieza ID3, Portada, Favoritos)
 │   │   │   │   │   │   ├── ImportExportDialog.kt # Diálogos de creación de listas e info
 │   │   │   │   │   │   ├── dialogs/
-│   │   │   │   │   │   │   └── ModelDownloadPromptDialog.kt # Modal emergente al inicio para consultar la descarga de los 4 modelos TFLite desde GitHub Release v1.0
+│   │   │   │   │   │   │   ├── EditTrackMetadataDialog.kt # Modal interactivo para edición manual de etiquetas ID3 y portadas
+│   │   │   │   │   │   │   └── SleepTimerSheet.kt    # Hoja modal para configuración de Temporizador de Sueño con Fade-Out
 │   │   │   │   │   │   ├── library/
 │   │   │   │   │   │   │   └── DuplicateDetectorModal.kt # Modal interactivo para escanear y eliminar duplicados acústicos
-│   │   │   │   │   │   └── player/               # Módulos descomprimidos del reproductor pantalla completa
+│   │   │   │   │   │   └── player/               # Módulos desglosados del reproductor pantalla completa
 │   │   │   │   │   │       ├── CustomVolumePanelHUD.kt # Panel flotante HUD de volumen personalizado estilo Spotify
+│   │   │   │   │   │       ├── PlayerBackgroundLayer.kt # Capa modular de fondo para video Canvas o gradientes
 │   │   │   │   │   │       ├── PlayerTopBar.kt   # Barra superior de navegación con botón de letras y volumen
+│   │   │   │   │   │       ├── PlayerHeaderArtSection.kt # Sección modular de carátula con indicador de Canvas
 │   │   │   │   │   │       ├── PlayerAlbumArt.kt # Componente de portada de álbum
 │   │   │   │   │   │       ├── PlayerScrollableContent.kt # Contenido central desglosado con carátula, controles, seekBar y letras
+│   │   │   │   │   │       ├── PlayerLyricsSection.kt # Sección modular de cabecera e integración de letras
 │   │   │   │   │   │       ├── PlayerLyricsView.kt # Vista de letras sincronizadas LRC con auto-scroll y editor
 │   │   │   │   │   │       ├── PlayerTrackHeader.kt # Cabecera de título, artista y botón favorito
 │   │   │   │   │   │       ├── PlayerSeekBar.kt  # Barra de progreso y tiempo de reproducción
@@ -94,7 +106,7 @@ SpotLocal/
 │   │   │   │   │   │       ├── PlayerEqSheet.kt  # Hoja modal de Ecualizador Avanzado de 5 Bandas y Presets
 │   │   │   │   │   │       ├── EqResponseCurveCanvas.kt # Gráfico Canvas de curva de respuesta en frecuencia Rust
 │   │   │   │   │   │       ├── EqPreset.kt       # Presets de ecualización (Plano, Rock, Pop, Jazz, Bass Boost)
-│   │   │   │   │   │       ├── PlayerStemSelector.kt # Selector e interfaz de faders de 4 Stems IA con descargador ONNX y Auto-Masterizador
+│   │   │   │   │   │       ├── PlayerAdvancedOptionsSheet.kt # Hoja de opciones avanzadas (Sleep Timer, ID3 Editor, Equalizer, 3D Audio, Crossfade)
 │   │   │   │   │   │       ├── VideoImportProgressModal.kt # Modal flotante de progreso de importación de video Canvas
 │   │   │   │   │   │       ├── PlayerAudio3dEnhancerView.kt # Componente de Mejora de Audio 3D e intensidad Reverb HRTF
 │   │   │   │   │   │       ├── QueueModalSheet.kt # Modal interactivo de cola de reproducción estilo Lark con marcado automático
@@ -142,20 +154,19 @@ SpotLocal/
 - `ci-check.yml`: Workflow GitHub Action para verificación de compilación y pruebas unitarias.
 
 ### 2. Capa de Presentación (`ui/` y `util/`)
-- **`PlayerFullScreen.kt`**: Coordinador principal simplificado.
-- **`PlayerScrollableContent.kt`**: Subcomponente UI modular para el contenido del reproductor (arte de álbum, badge canvas, cabecera de título, seekbar, controles de reproducción, letras).
-- **`MainActivityFilePickerHelper.kt`**: Gestor modular de launchers y selectores de archivos (música, videos, portadas WebP, respaldo JSON, notificaciones).
+- **`PlayerFullScreen.kt`**: Coordinador principal simplificado apoyado por `PlayerBackgroundLayer.kt`.
+- **`PlayerScrollableContent.kt`**: Subcomponente UI modular desglosado en `PlayerHeaderArtSection.kt` y `PlayerLyricsSection.kt`.
+- **`MainActivityFilePickerHelper.kt`**: Gestor modular de launchers y selectores de archivos.
 
 ### 3. Capa de Dominio y Audio (`player/` y `data/`)
-- **`AudioDspEngine.kt`**: Fachada de procesamiento DSP.
-- **`AudioFxManager.kt`**: Gestor modular de efectos Android hardware `Equalizer`, `Virtualizer`, `BassBoost` y `PresetReverb`.
+- **`AudioDspEngine.kt`**: Fachada de procesamiento DSP integrada con `PlaybackParamsController.kt`.
+- **`AudioFxManager.kt`**: Coordinador modular respaldado por `EqualizerFxController.kt`, `Spatial3dAudioFxController.kt` y `ReverbFxController.kt`.
 
-### 4. Capa de Almacenamiento e Importación (`data/storage/` y `data/importer/`)
-- **`LocalStorageManager.kt`**: Fachada principal con delegados:
-  - `ImageStorageDelegate.kt`: Conversión lossless WebP de portadas e imágenes semilla.
-  - `JsonStorageDelegate.kt`: Sincronización de metadatos `library_cache.json` y `track_{id}.json`.
-  - `MediaStorageDelegate.kt`: Importación de videos Canvas y guardado multimedia.
-- **`AudioImporter.kt`**: Fachada de importación con `UriMetadataHelper.kt` para la extracción de nombres, tamaños y tipo MIME.
+### 4. Capa de Almacenamiento, Importación e IA (`data/storage/`, `data/importer/` y `data/ai/`)
+- **`LocalStorageManager.kt`**: Fachada principal con delegados `ImageStorageDelegate.kt`, `JsonStorageDelegate.kt` y `MediaStorageDelegate.kt`.
+- **`AudioImporter.kt`**: Fachada de importación con `TrackMetadataExtractor.kt` y `UriMetadataHelper.kt`.
+- **`TfliteInferenceRunner.kt`**: Ejecutor TFLite respaldado por `TfliteModelInspector.kt`.
+- **`AudioDecoderPipeline.kt`**: Pipeline de decodificación respaldado por `AudioMediaCodecDecoder.kt` y `StftSpectrogramCalculator.kt`.
 
 ### 5. Capa de Repositorio (`data/repository/`)
 - **`MusicRepository.kt`**: Fachada unificada de datos respaldada por `PlaylistRepositoryDelegate.kt` y `LibraryExportHelper.kt`.

@@ -18,6 +18,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+enum class SleepTimerOption(val label: String, val minutes: Int?) {
+    OFF("Desactivado", null),
+    MIN_5("5 minutos", 5),
+    MIN_10("10 minutos", 10),
+    MIN_15("15 minutos", 15),
+    MIN_30("30 minutos", 30),
+    MIN_45("45 minutos", 45),
+    MIN_60("60 minutos", 60),
+    FINISH_TRACK("Al finalizar la canción", -1),
+    CUSTOM("Personalizado", null)
+}
+
 class MusicPlayerManager(private val context: Context) {
 
     companion object {
@@ -64,6 +76,14 @@ class MusicPlayerManager(private val context: Context) {
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
+    private val _sleepTimerOption = MutableStateFlow(SleepTimerOption.OFF)
+    val sleepTimerOption: StateFlow<SleepTimerOption> = _sleepTimerOption.asStateFlow()
+
+    private val _sleepTimerRemainingMs = MutableStateFlow<Long?>(null)
+    val sleepTimerRemainingMs: StateFlow<Long?> = _sleepTimerRemainingMs.asStateFlow()
+
+    private var sleepTimerJob: Job? = null
+
     val isEqEnabled: StateFlow<Boolean> = effectsController.isEqEnabled
     val bandGainsDb: StateFlow<FloatArray> = effectsController.bandGainsDb
     val eqPreset: StateFlow<com.example.ui.components.player.EqPreset> = effectsController.eqPreset
@@ -75,6 +95,66 @@ class MusicPlayerManager(private val context: Context) {
     val crossfadeDurationSec: StateFlow<Float> = effectsController.crossfadeDurationSec
     val isVolumeNormalizerEnabled: StateFlow<Boolean> = effectsController.isVolumeNormalizerEnabled
     val targetLufs: StateFlow<Float> = effectsController.targetLufs
+
+    fun setSleepTimer(option: SleepTimerOption, customMinutes: Int? = null) {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerOption.value = option
+
+        if (option == SleepTimerOption.OFF) {
+            _sleepTimerRemainingMs.value = null
+            effectsController.applyVolumeSettings(mediaPlayer, _currentTrack.value)
+            return
+        }
+
+        val totalMinutes = if (option == SleepTimerOption.CUSTOM) customMinutes ?: 15 else option.minutes
+
+        if (option == SleepTimerOption.FINISH_TRACK) {
+            _sleepTimerRemainingMs.value = null
+            return
+        }
+
+        if (totalMinutes == null || totalMinutes <= 0) {
+            _sleepTimerRemainingMs.value = null
+            return
+        }
+
+        val totalMs = totalMinutes * 60 * 1000L
+        _sleepTimerRemainingMs.value = totalMs
+
+        sleepTimerJob = scope.launch {
+            var remaining = totalMs
+            val fadeDurationMs = 15000L
+            val baseVolumeMult = VolumeNormalizerEngine.calculateVolumeGainMultiplier(
+                track = _currentTrack.value,
+                targetLufs = targetLufs.value,
+                enabled = isVolumeNormalizerEnabled.value
+            )
+
+            while (remaining > 0 && isActive) {
+                delay(1000)
+                remaining -= 1000
+                _sleepTimerRemainingMs.value = remaining.coerceAtLeast(0)
+
+                if (remaining <= fadeDurationMs) {
+                    val fadeFactor = (remaining.toFloat() / fadeDurationMs.toFloat()).coerceIn(0f, 1f)
+                    val vol = baseVolumeMult * fadeFactor
+                    try {
+                        mediaPlayer?.setVolume(vol, vol)
+                    } catch (e: Exception) { /* ignore */ }
+                }
+            }
+
+            if (isActive) {
+                if (_isPlaying.value) {
+                    togglePlayPause()
+                }
+                _sleepTimerOption.value = SleepTimerOption.OFF
+                _sleepTimerRemainingMs.value = null
+                effectsController.applyVolumeSettings(mediaPlayer, _currentTrack.value)
+            }
+        }
+    }
 
     fun setCrossfadeDuration(seconds: Float) = effectsController.setCrossfadeDuration(seconds)
     fun setVolumeNormalizerEnabled(enabled: Boolean) = effectsController.setVolumeNormalizerEnabled(enabled, mediaPlayer, _currentTrack.value)
@@ -88,7 +168,6 @@ class MusicPlayerManager(private val context: Context) {
     fun setBandGain(bandIndex: Int, gainDb: Float) = effectsController.setBandGain(bandIndex, gainDb)
     fun setEqPreset(preset: com.example.ui.components.player.EqPreset) = effectsController.setEqPreset(preset)
     fun resetEq() = effectsController.resetEq()
-    fun setStemMode(mode: com.example.data.ai.StemMode) = effectsController.setStemMode(mode)
 
     fun peekNextTrack(): TrackEntity? = queueController.peekNextTrack()
     fun moveQueueItem(fromIndex: Int, toIndex: Int) = queueController.moveQueueItem(fromIndex, toIndex)
@@ -213,7 +292,16 @@ class MusicPlayerManager(private val context: Context) {
     fun clearError() { _playbackError.value = null }
 
     private fun onTrackCompleted() {
-        nextTrack()
+        if (_sleepTimerOption.value == SleepTimerOption.FINISH_TRACK) {
+            if (_isPlaying.value) {
+                togglePlayPause()
+            }
+            _sleepTimerOption.value = SleepTimerOption.OFF
+            _sleepTimerRemainingMs.value = null
+            effectsController.applyVolumeSettings(mediaPlayer, _currentTrack.value)
+        } else {
+            nextTrack()
+        }
     }
 
     private var isCrossfadeInProgress = false

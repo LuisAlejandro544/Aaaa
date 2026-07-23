@@ -1,8 +1,6 @@
 package com.example.player.controllers
 
 import android.media.MediaPlayer
-import com.example.data.ai.StemMode
-import com.example.data.ai.StemSeparatorEngine
 import com.example.data.db.TrackEntity
 import com.example.player.Audio3dSpeakerMode
 import com.example.player.AudioDspEngine
@@ -53,7 +51,6 @@ class AudioEffectsController {
     fun attachEffects(mediaPlayer: MediaPlayer?, currentTrack: TrackEntity?, speed: Float, pitch: Float) {
         mediaPlayer?.let { player ->
             dspEngine.attachEqualizer(player.audioSessionId)
-            dspEngine.applyStemMode(StemSeparatorEngine.separationState.value.currentStemMode)
             dspEngine.applyCustomEqBands(_isEqEnabled.value, _bandGainsDb.value)
             dspEngine.apply3dAudioFx(_is3dAudioEnabled.value, (_audio3dStrength.value * 1000f).toInt().toShort(), _audio3dMode.value)
             dspEngine.applyReverbEnvironment(_reverbEnvironment.value, _reverbStrength.value)
@@ -155,11 +152,6 @@ class AudioEffectsController {
 
     fun resetEq() {
         setEqPreset(EqPreset.FLAT)
-    }
-
-    fun setStemMode(mode: StemMode) {
-        StemSeparatorEngine.setStemMode(mode)
-        dspEngine.applyStemMode(mode)
     }
 
     fun release() {

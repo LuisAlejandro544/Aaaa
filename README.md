@@ -6,23 +6,27 @@ SpotLocal es una aplicación Android nativa diseñada para reproducir música lo
 
 ## 🌟 Características Principales
 
+- ⏰ **Temporizador de Sueño Inteligente (Sleep Timer con Fade-Out)**:
+  - Opciones de apagado automático programable: 5, 15, 30, 45, 60 minutos o tiempo personalizado.
+  - Lógica de reducción suave de volumen (fade-out progresivo de 15 segundos) antes del apagado automático para evitar interrupciones bruscas de sueño.
+  - Indicador dinámico de tiempo restante en vivo en la hoja modal `SleepTimerSheet` y en el reproductor.
+- ✏️ **Editor Manual de Etiquetas ID3 & Portadas**:
+  - Modal interactivo `EditTrackMetadataDialog` para editar manualmente Título, Artista, Álbum, Género y Estado de Ánimo (Mood).
+  - Selector e integrador de Portadas / Carátulas personalizadas con compresión WebP en hilo secundario (`Dispatchers.IO`).
 - 📋 **Cola de Reproducción Interactiva & Marca Automática (Estilo Lark)**:
   - Módulo de gestión en `QueueController` e interfaz dedicada `QueueModalSheet` estilo Lark Player.
   - Marca automáticamente la pista que viene a continuación ("A CONTINUACIÓN / SIGUIENTE") según el orden de la lista, estado de modo aleatorio (Shuffle) o modo de repetición (Repeat).
   - Permite reordenar manualmente canciones en la cola (subir/bajar de posición) y eliminar pistas individuales.
 - 🏛️ **Simulador de Ambientes Reverb 3D (Spatial HRTF Audio)**:
-  - Integración del efecto `PresetReverb` en `AudioDspEngine` controlado por `SpatialReverbEnvironment`.
+  - Integración del efecto `PresetReverb` mediante el controlador modular `ReverbFxController` en `AudioFxManager` y `AudioDspEngine` controlado por `SpatialReverbEnvironment`.
   - Simula acústica tridimensional de recintos reales: Habitación Pequeña, Salón Mediano, Gran Salón, Catedral y Estadio.
   - Incluye selector de ambiente y regulador de intensidad de reverberación (0% a 100%) en la hoja de Opciones Avanzadas del reproductor.
 - 🔍 **Motor de Búsqueda Difusa (Fuzzy Search & Levenshtein)**:
   - Algoritmo de distancia de Levenshtein y normalización diacrítica en `RustFuzzySearchEngine` que permite encontrar canciones en la biblioteca tolerando errores ortográficos o faltas de acentos.
 - 🖼️ **Parser Directo de Carátulas Incrustadas (ID3v2.4 / FLAC / OGG)**:
-  - Extracción directa e inspección de marcos APIC / PICTURE de metadatos mediante `RustMetadataParser` prioritario en `AudioImporter`, convirtiéndolas a WebP lossless.
-- 🤖 **Descargador de los 4 Modelos IA TFLite FP16 (~75 MB Total / 74.9 MB) desde GitHub Releases & Motor Optimizado TensorFlow Lite**:
-  - Módulo `StemModelManager`, diálogo interactivo de bienvenida `ModelDownloadPromptDialog` e integración en el mezclador del reproductor `PlayerStemSelector`.
-  - Descarga los 4 modelos de precisión FP16 (`uvr_mdx_voc_ft_fp16.tflite`, `kuielab_a_bass_fp16.tflite`, `kuielab_a_drums_fp16.tflite`, `kuielab_a_other_fp16.tflite`) directamente desde GitHub Release v1.0 (`https://github.com/LuisAlejandro544/Modelos/releases/tag/v1.0`).
-  - Pregunta al usuario de manera opcional y no intrusiva al entrar a la app si desea descargar los archivos para la separación local de audio sin internet, descargando en segundo plano con indicador de progreso. Incluye enlace directo a la release de GitHub para total confianza.
-  - Módulo `TfliteInferenceRunner` acelerado por GPU/NNAPI y pipeline `AudioDecoderPipeline` con decodificación `MediaCodec` y espectrogramas STFT para compatibilidad instantánea con archivos MP3, WAV, FLAC, AAC y OGG.
+  - Extracción directa e inspección de marcos APIC / PICTURE de metadatos mediante `RustMetadataParser` y el módulo extractor `TrackMetadataExtractor` en `AudioImporter`, convirtiéndolas a WebP lossless.
+- 🐍 **Módulo Python Nativo Preservado (`python_ai/`)**:
+  - Módulo nativo en `python_ai/` reservado para la exportación y preparación de modelos futuros de procesamiento y análisis de audio en ONNX/TFLite.
 - 🎬 **Video a Música + Video de Fondo (Canvas Sincronizado Asíncrono)**:
   - Función para importar archivos de video (MP4/MKV) como canciones normales de la biblioteca con un solo toque desde el botón de la barra superior.
   - Procesamiento completamente asíncrono en segundo plano (`Dispatchers.IO`) optimizado con copiado de flujo por bloques de 64KB y extracción resiliente de fotogramas WebP para videos largos y de alta definición 4K.
@@ -51,8 +55,8 @@ SpotLocal es una aplicación Android nativa diseñada para reproducir música lo
   - Transición suave de audio mediante rampa de volumen progresiva en corrutinas de Kotlin al aproximarse al final de cada canción.
   - Duración de fundido cruzado totalmente personalizable de 0 a 10 segundos en la hoja de Opciones Avanzadas.
 - 🔊 **Mejora de Audio 3D Espacial (Para 1 y 2 Bocinas)**:
-  - Procesador de sonido tridimensional `Audio3dEnhancer` respaldado por `android.media.audiofx.Virtualizer` y `BassBoost`.
-  - **Modo Doble Bocina (Stereo)**: Maximiza la separación de canales y amptitud espacial en smartphones con 2 altavoces.
+  - Procesador de sonido tridimensional gestionado por `Spatial3dAudioFxController` respaldado por `android.media.audiofx.Virtualizer` y `BassBoost`.
+  - **Modo Doble Bocina (Stereo)**: Maximiza la separación de canales y amplitud espacial en smartphones con 2 altavoces.
   - **Modo Bocina Única (Mono/Single)**: Aplica una matriz de psicoacústica para simular profundidad surround en dispositivos con un único altavoz.
   - **Modo Audífonos**: Optimiza la inmersión tridimensional para auriculares.
   - Controles de encendido/apagado, intensidad de efecto (0% a 100%) y modo de altavoces en la hoja de "Opciones Avanzadas".
@@ -64,24 +68,23 @@ SpotLocal es una aplicación Android nativa diseñada para reproducir música lo
   - Workflows automatizados en `.github/workflows/apk-debug.yml` y `.github/workflows/ci-check.yml` con filtro inteligente de archivos (`paths-ignore` para `.md` y archivos de documentación) para evitar builds innecesarios.
   - **`apk debug`**: Compila y firma automáticamente el APK de depuración con la clave de depuración estándar y genera el artefacto listo para instalar.
   - **`CI Check`**: Ejecuta la compilación de código y la suite de pruebas unitarias para garantizar que los cambios no rompan la aplicación.
-- 🐍 **IA Separación de Stems con Python & ONNX**:
-  - Modelo neuronal liviano (<5MB) entrenado en Python y optimizado para ONNX Runtime Mobile.
-  - Permite separar pistas en **Original, Solo Voces, Solo Instrumental y Modo Karaoke** en tiempo real.
+- 🐍 **Módulo Python Nativo (`python_ai/`)**:
+  - Scripts y módulos Python reservados para la exportación y preparación de modelos de audio ONNX/TFLite para desarrollos futuros.
 - 🦀 **Parsing Ultra-Seguro en Rust**:
   - Extracción e inspección rápida y libre de desbordamientos de memoria para etiquetas **ID3v1/ID3v2, FLAC, OGG/Vorbis y WAV/RIFF** mediante el módulo nativo Rust `spotlocal_rust_parser`.
 - 🎚️ **Control DSP & Ecualizador Avanzado C++ & Rust**:
-  - **Ecualizador de 5 Bandas**: Controles deslizantes para 60Hz, 230Hz, 910Hz, 3.6kHz y 14kHz (-12dB a +12dB).
+  - **Ecualizador de 5 Bandas**: Controles deslizantes para 60Hz, 230Hz, 910Hz, 3.6kHz y 14kHz (-12dB a +12dB) gestionados por `EqualizerFxController`.
   - **Filtros Biquad Nativo C++**: Cálculo en tiempo real de coeficientes de filtro Peaking EQ ($b_0, b_1, b_2, a_1, a_2$) a nivel de hardware NDK.
   - **Curva de Respuesta en Frecuencia Rust**: Cálculo de respuesta logarítmica (20Hz a 20kHz) en Rust (`RustEqualizerEngine`) renderizada dinámicamente en un Canvas interactivo con gradiente.
   - **Presets de Audio**: Plano, Bajos Potentes, Rock, Pop, Jazz, Voz Clara, Acústico, Electrónica y Personalizado.
-  - **Controles DSP**: Slider para ajuste de **Velocidad de reproducción** (0.25x a 2.0x) y **Tono (Pitch Shift)** (0.25x a 2.0x).
+  - **Controles DSP**: Controlador `PlaybackParamsController` para ajuste de **Velocidad de reproducción** (0.25x a 2.0x) y **Tono (Pitch Shift)** (0.25x a 2.0x).
 - 🎨 **Carátulas Inteligentes & Generador por Semilla WebP**:
-  - Extracción e inserción automática de carátulas embebidas de metadatos de audio convertidas a formato WebP.
+  - Extracción e inserción automática de carátulas embebidas de metadatos de audio convertidas a formato WebP por `TrackMetadataExtractor`.
   - Si la música importada no posee carátula, la app genera automáticamente una portada artística personalizada mediante colores y patrones semilla basados en el título/artista.
   - **Soporte para Carátulas Personalizadas WebP**: Opción para seleccionar cualquier imagen local, procesándola y comprimiéndola a formato WebP máxima calidad en segundo plano (`Dispatchers.IO`) para evitar que la interfaz se congele.
 - 📝 **Soporte para Letras Sincronizadas (LRC & Texto)**:
   - Módulo `LrcParser` para procesamiento de letras sincronizadas con marcas de tiempo `[mm:ss.xx]`.
-  - Componente `PlayerLyricsView` con desplazamiento automático inteligente y resaltado de la línea activa en tiempo real según el progreso de la canción.
+  - Componente de sección modular `PlayerLyricsSection` con vista `PlayerLyricsView`, desplazamiento automático inteligente y resaltado de la línea activa en tiempo real según el progreso de la canción.
   - Editor interactivo para agregar, pegar o modificar letras en cualquier canción desde el reproductor o menú contextual.
 - 📁 **Estructura Organizativa Limpia en `Android/data/app/files/`**:
   - `music/`: Carpeta dedicada para música local importada.
@@ -92,7 +95,7 @@ SpotLocal es una aplicación Android nativa diseñada para reproducir música lo
   - Pestañas de Navegación: Inicio, Buscar y Tu Biblioteca.
   - **Pantallas Independientes de Playlist y Favoritos**: Al presionar sobre "Canciones que te gustan", una lista personalizada o una carpeta, se abre una pantalla dedicada (`PlaylistDetailScreen`) con botón de reproducción aleatoria, cabecera de portada y lista de pistas.
   - **Menú de Opciones por Pulsación Larga**: Mantener presionada cualquier canción despliega el menú contextual de opciones (favoritos, carátula personalizada, eliminación).
-  - Sincronización e intercambio instantáneo de color animado con `animateColorAsState` para el icono de corazón favorito en el reproductor a tamaño completo, mini reproductor (`MiniPlayer`) y listas de reproducción.
+  - Sincronización e intercambio instantáneo de color animado con `animateColorAsState` para el icono de corazón favorito en el reproductor a tamaño completo (`PlayerFullScreen` respaldado por `PlayerBackgroundLayer`), mini reproductor (`MiniPlayer`) y listas de reproducción.
 - 💾 **Persistencia y Respaldo Local**:
   - Base de datos Room en SQLite.
   - Función de exportación de biblioteca en formato JSON para respaldos o migración.
@@ -105,6 +108,7 @@ SpotLocal está construido bajo una arquitectura híbrida de alto rendimiento:
 
 1. **Kotlin**:
    - UI declarativa con **Jetpack Compose** y **Material Design 3**.
+   - Arquitectura modular desacoplada en controladores y delegados especializados (`EqualizerFxController`, `Spatial3dAudioFxController`, `ReverbFxController`, `PlaybackParamsController`, `TfliteModelInspector`, `AudioMediaCodecDecoder`, `StftSpectrogramCalculator`, `TrackMetadataExtractor`, `PlayerBackgroundLayer`, `PlayerHeaderArtSection`, `PlayerLyricsSection`).
    - Consola modal de logs y capturador de errores `DebugLogger` en compilaciones Debug.
    - Gestión de estado reactiva con `ViewModel`, `StateFlow` y `collectAsStateWithLifecycle`.
    - Persistencia local mediante **Room DB** con soporte KSP.
@@ -134,7 +138,7 @@ SpotLocal está construido bajo una arquitectura híbrida de alto rendimiento:
 ## 📄 Licencia
 
 Este proyecto utiliza la licencia **PolyForm Noncommercial License 1.0.0** (Código Visible pero No Comercial).
-Permite visualizar, estudiar y ejecutar el código para uso privado y personal no comercial. Queda estrictamente prohibida su explotación comercial, redistribución lucrativa o venta sin autorización expresa del autor.
+Permite visualizar, estudiar y ejecutar el código para uso privado y personal no comercial. Queda strictly prohibida su explotación comercial, redistribución lucrativa o venta sin autorización expresa del autor.
 
 ---
 
@@ -142,4 +146,3 @@ Permite visualizar, estudiar y ejecutar el código para uso privado y personal n
 
 **Este proyecto es un repositorio personal cerrado a contribuciones externas.**
 No se aceptan Pull Requests, propuestas de código ni contribuciones de terceros. El repositorio se mantiene público únicamente como demostración, uso personal y auditoría de código visible.
-

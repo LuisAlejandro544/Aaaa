@@ -4,9 +4,6 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.ai.StemMode
-import com.example.data.ai.StemSeparationState
-import com.example.data.ai.StemSeparatorEngine
 import com.example.data.db.AppDatabase
 import com.example.data.db.PlaylistEntity
 import com.example.data.db.TrackEntity
@@ -14,6 +11,7 @@ import com.example.data.repository.MusicRepository
 import com.example.player.Audio3dSpeakerMode
 import com.example.player.MusicPlayerManager
 import com.example.player.RepeatMode
+import com.example.player.SleepTimerOption
 import com.example.player.SpatialReverbEnvironment
 import com.example.player.VolumeController
 import com.example.player.VolumeState
@@ -22,8 +20,10 @@ import com.example.ui.viewmodel.delegates.LibraryDelegate
 import com.example.ui.viewmodel.delegates.NavigationDelegate
 import com.example.util.DuplicateCluster
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class SpotifyTab {
-    HOME, SEARCH, LIBRARY
+    HOME, SEARCH, LIBRARY, SETTINGS
 }
 
 sealed class PlaylistDetailTarget {
@@ -50,6 +50,31 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     val navDelegate = NavigationDelegate()
     val libraryDelegate = LibraryDelegate(repository, viewModelScope)
+
+    // AI Settings Manager & State
+    val aiSettingsManager = com.example.data.ai.AiSettingsManager(application)
+    val aiSettingsState: StateFlow<com.example.data.ai.AiSettingsState> = aiSettingsManager.settings
+
+    private val _translatedLyrics = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val translatedLyrics: StateFlow<String?> = _translatedLyrics.asStateFlow()
+
+    private val _isTranslatingLyrics = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isTranslatingLyrics: StateFlow<Boolean> = _isTranslatingLyrics.asStateFlow()
+
+    private val _songExplanation = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val songExplanation: StateFlow<String?> = _songExplanation.asStateFlow()
+
+    private val _isExplainingSong = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isExplainingSong: StateFlow<Boolean> = _isExplainingSong.asStateFlow()
+
+    private val _showSmartVibeDialog = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val showSmartVibeDialog: StateFlow<Boolean> = _showSmartVibeDialog.asStateFlow()
+
+    private val _showLyricsExplanationSheet = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val showLyricsExplanationSheet: StateFlow<Boolean> = _showLyricsExplanationSheet.asStateFlow()
+
+    private val _explanationModalType = kotlinx.coroutines.flow.MutableStateFlow("explanation") // "explanation" or "translation"
+    val explanationModalType: StateFlow<String> = _explanationModalType.asStateFlow()
 
     // Navigation state
     val currentTab: StateFlow<SpotifyTab> = navDelegate.currentTab
@@ -81,8 +106,11 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val playbackPitch: StateFlow<Float> = playerManager.playbackPitch
     val playbackError: StateFlow<String?> = playerManager.playbackError
 
-    // DSP & AI Stems state
-    val separationState: StateFlow<StemSeparationState> = StemSeparatorEngine.separationState
+    // Sleep Timer State
+    val sleepTimerOption: StateFlow<SleepTimerOption> = playerManager.sleepTimerOption
+    val sleepTimerRemainingMs: StateFlow<Long?> = playerManager.sleepTimerRemainingMs
+
+    // DSP State
     val isEqEnabled: StateFlow<Boolean> = playerManager.isEqEnabled
     val bandGainsDb: StateFlow<FloatArray> = playerManager.bandGainsDb
     val eqPreset: StateFlow<EqPreset> = playerManager.eqPreset
@@ -152,6 +180,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun setShowTrackOptionsDialog(track: TrackEntity?) = libraryDelegate.setShowTrackOptionsDialog(track)
     fun setShowExportDialog(show: Boolean) = libraryDelegate.setShowExportDialog(show)
     fun clearImportMessage() = libraryDelegate.clearImportMessage()
+    fun setImportMessage(msg: String) = libraryDelegate.setImportMessage(msg)
 
     fun importUris(uris: List<Uri>) = libraryDelegate.importUris(getApplication(), uris)
     
@@ -198,11 +227,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun removeCanvasVideo(track: TrackEntity) = libraryDelegate.removeCanvasVideo(getApplication(), track)
     fun updateLyrics(track: TrackEntity, newLyrics: String) = libraryDelegate.updateLyrics(getApplication(), track, newLyrics)
     fun cleanTrackTags(track: TrackEntity) = libraryDelegate.cleanTrackTags(track)
+    fun updateTrackMetadata(track: TrackEntity, title: String, artist: String, album: String, genre: String, year: String) =
+        libraryDelegate.updateTrackMetadata(track, title, artist, album, genre, year)
     fun classifyTrackMoodAndGenre(track: TrackEntity) = libraryDelegate.classifyTrackMoodAndGenre(track)
     fun cleanAllLibraryTags() = libraryDelegate.cleanAllLibraryTags()
     fun scanDuplicates() = libraryDelegate.scanDuplicates()
     fun deleteDuplicateTrack(track: TrackEntity) = libraryDelegate.deleteDuplicateTrack(track)
     fun exportLibrary(destinationUri: Uri) = libraryDelegate.exportLibrary(getApplication(), destinationUri)
+
+    fun setSleepTimer(option: SleepTimerOption, customMinutes: Int? = null) = playerManager.setSleepTimer(option, customMinutes)
 
     fun deleteTrack(track: TrackEntity) {
         viewModelScope.launch {
@@ -272,19 +305,92 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun setEqPreset(preset: EqPreset) = playerManager.setEqPreset(preset)
     fun resetEq() = playerManager.resetEq()
 
-    fun setStemMode(mode: StemMode) {
-        playerManager.setStemMode(mode)
-        currentTrack.value?.let {
-            StemSeparatorEngine.processTrackStems(it.title)
-        }
-    }
-
     // Volume HUD Controller actions
     fun setVolumePercent(percent: Float) = volumeController.setVolumePercent(percent, showHud = true)
     fun adjustVolume(deltaStep: Int) = volumeController.adjustVolume(deltaStep)
     fun toggleMuteVolume() = volumeController.toggleMute()
     fun showVolumeHud() = volumeController.showHud()
     fun hideVolumeHud() = volumeController.hideHud()
+
+    // Smart AI Feature Actions & Dialogs
+    fun setShowSmartVibeDialog(show: Boolean) {
+        _showSmartVibeDialog.value = show
+    }
+
+    fun setShowLyricsExplanationSheet(show: Boolean) {
+        _showLyricsExplanationSheet.value = show
+    }
+
+    fun setVibeGenEnabled(enabled: Boolean) = aiSettingsManager.setVibePlaylistGeneratorEnabled(enabled)
+    fun setLyricsTranslatorEnabled(enabled: Boolean) = aiSettingsManager.setLyricsTranslatorEnabled(enabled)
+    fun setVibeMatchEnabled(enabled: Boolean) = aiSettingsManager.setVibeMatchEnabled(enabled)
+    fun setCustomApiKey(apiKey: String) = aiSettingsManager.setCustomApiKey(apiKey)
+    fun setSelectedModel(model: String) = aiSettingsManager.setSelectedModel(model)
+
+    fun generateVibePlaylist(vibePrompt: String) {
+        viewModelScope.launch {
+            val tracks = allTracks.value
+            val (playlistName, vibeTracks) = com.example.data.ai.SmartVibeEngine.generateVibePlaylist(vibePrompt, tracks)
+            if (vibeTracks.isNotEmpty()) {
+                val createdId = repository.createPlaylist(playlistName, "Lista Inteligente Vibe: $vibePrompt")
+                vibeTracks.forEach { track ->
+                    repository.addTrackToPlaylist(createdId, track.id)
+                }
+                libraryDelegate.setImportMessage("Lista '$playlistName' creada con ${vibeTracks.size} canciones.")
+            } else {
+                libraryDelegate.setImportMessage("No se encontraron canciones en tu biblioteca para el vibe: '$vibePrompt'.")
+            }
+        }
+    }
+
+    fun generateVibeMatchQueue(sourceTrack: TrackEntity) {
+        viewModelScope.launch {
+            val tracks = allTracks.value
+            val vibeMatches = com.example.data.ai.SmartVibeEngine.findVibeMatches(sourceTrack, tracks)
+            if (vibeMatches.isNotEmpty()) {
+                playerManager.setQueueAndPlay(vibeMatches, 0)
+                libraryDelegate.setImportMessage("⚡ Vibe-Match activado: ${vibeMatches.size} canciones de tono similar en la cola.")
+            }
+        }
+    }
+
+    fun translateCurrentLyrics(track: TrackEntity) {
+        viewModelScope.launch {
+            _explanationModalType.value = "translation"
+            _showLyricsExplanationSheet.value = true
+            _isTranslatingLyrics.value = true
+            val lyrics = track.lyrics ?: "No hay letras registradas para traducir."
+            val customKey = aiSettingsState.value.customApiKey
+            val model = aiSettingsState.value.selectedModel
+            val result = com.example.data.ai.GeminiLyricsService.translateLyrics(
+                lyricsText = lyrics,
+                customApiKey = customKey,
+                selectedModel = model
+            )
+            _translatedLyrics.value = result
+            _isTranslatingLyrics.value = false
+        }
+    }
+
+    fun explainCurrentSongMeaning(track: TrackEntity) {
+        viewModelScope.launch {
+            _explanationModalType.value = "explanation"
+            _showLyricsExplanationSheet.value = true
+            _isExplainingSong.value = true
+            val lyrics = track.lyrics ?: "Música instrumental o sin letra registrada."
+            val customKey = aiSettingsState.value.customApiKey
+            val model = aiSettingsState.value.selectedModel
+            val result = com.example.data.ai.GeminiLyricsService.explainSongMeaning(
+                title = track.title,
+                artist = track.artist,
+                lyricsText = lyrics,
+                customApiKey = customKey,
+                selectedModel = model
+            )
+            _songExplanation.value = result
+            _isExplainingSong.value = false
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()

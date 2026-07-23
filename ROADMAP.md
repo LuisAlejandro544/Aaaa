@@ -60,30 +60,37 @@ Este documento detalla la hoja de ruta y planificación futura para la evolució
 
 ---
 
-## 📌 Fase 3: Integración de IA & Python (Completado ✅)
-- [x] Módulo `python_ai/` con scripts `stem_separator.py`, `model_config.py`, `audio_processor.py` y `export_onnx.py`.
-- [x] **Evolución del Motor IA a 4 Stems HD & Motor Optimizado TensorFlow Lite**:
-  - Modelo ONNX Runtime v2 (Mobile-UNet 4-Stem HD 18.5MB) en `OnnxInferenceRunner.kt`.
-  - Motor `TfliteInferenceRunner.kt` optimizado para TFLite acelerado por GPU/NNAPI y pipeline de decodificación `AudioDecoderPipeline.kt` para MP3, WAV, FLAC, AAC y OGG con espectrogramas STFT.
-  - Módulo `StemModelManager.kt` y diálogo `ModelDownloadPromptDialog.kt` para consultar al usuario al ingresar a la app y descargar asincrónicamente los 4 modelos TFLite FP16 (`uvr_mdx_voc_ft_fp16.tflite`, `kuielab_a_bass_fp16.tflite`, `kuielab_a_drums_fp16.tflite`, `kuielab_a_other_fp16.tflite`, ~75 MB total / 74.9 MB) directamente desde GitHub Release v1.0 (`https://github.com/LuisAlejandro544/Modelos/releases/tag/v1.0`), con progreso en vivo en segundo plano y enlace transparente de confianza.
-  - Separación aislada en tiempo real de **Voces, Batería/Percusión, Bajo/Sub-Bass y Melodía/Teclados**.
-- [x] **Auto-Masterizador por Análisis Espectral IA**:
-  - Ecualización dinámica y ajuste automático de sonoridad para prevenir saturaciones y clipping al mezclar stems.
-- [x] **Interfaz de Faders de 4 Stems**:
-  - Sliders interactivos individuales en dB para controlar la ganancia de cada canal en `PlayerStemSelector.kt`.
-- [x] Motor Kotlin `StemSeparatorEngine` y selector en la UI para intercambiar modos: **Original, Voces, Instrumental, Karaoke y 4 Stems**.
+## 📌 Fase 3: Módulo Python, Temporizador de Sueño y Editor ID3 (Completado ✅)
+- [x] Módulo `python_ai/` preservado con scripts `stem_separator.py`, `model_config.py`, `audio_processor.py` y `export_onnx.py` para futuros desarrollos.
+- [x] **Temporizador de Sueño Inteligente (Sleep Timer con Fade-Out Progresivo)**:
+  - Opciones de temporizador a 5, 15, 30, 45, 60 min o personalizado con cuenta regresiva en vivo en `SleepTimerSheet`.
+  - Fundido de salida progresivo (15s fade-out de volumen) antes del pausado automático para evitar despertares bruscos.
+- [x] **Editor Manual de Etiquetas ID3 & Portadas**:
+  - Modal interactivo `EditTrackMetadataDialog` para personalizar Título, Artista, Álbum, Género y Estado de Ánimo (Mood).
+  - Integración con `LibraryDelegate` y `MusicRepository` para persistencia en base de datos Room y actualización en la interfaz.
+  - Asignador de carátulas/portadas personalizadas WebP en hilo secundario `Dispatchers.IO`.
 
 ---
 
-## 📌 Fase 4: Arquitectura Modular & Refactorización (Completado ✅)
+## 📌 Fase 4: Arquitectura Modular & Refactorización Avanzada (Completado ✅)
 - [x] **Desarrollo Modular de ViewModel y Controladores**:
   - Refactorización de `PlayerViewModel.kt` desacoplándolo en delegados modulares (`NavigationDelegate.kt`, `LibraryDelegate.kt`).
   - Refactorización de `MusicPlayerManager.kt` en controladores especializados (`QueueController.kt`, `AudioEffectsController.kt`).
   - Desacoplamiento de `SpotLocalMainScaffold.kt` y simplificación de `MainActivity.kt`.
+- [x] **Desarrollo Modular de Motores de Inferencia e Importadores**:
+  - Desacoplamiento de `TfliteInferenceRunner.kt` mediante `TfliteModelInspector.kt`.
+  - Desacoplamiento de `AudioDecoderPipeline.kt` en `AudioMediaCodecDecoder.kt` y `StftSpectrogramCalculator.kt`.
+  - Desacoplamiento de `AudioImporter.kt` mediante `TrackMetadataExtractor.kt`.
+- [x] **Desarrollo Modular de AudioFX y Parámetros DSP**:
+  - Desacoplamiento de `AudioFxManager.kt` en controladores modulares (`EqualizerFxController.kt`, `Spatial3dAudioFxController.kt`, `ReverbFxController.kt`).
+  - Desacoplamiento de `AudioDspEngine.kt` integrando `PlaybackParamsController.kt`.
+- [x] **Desarrollo Modular de Vistas del Reproductor**:
+  - Desacoplamiento de `PlayerFullScreen.kt` mediante `PlayerBackgroundLayer.kt`.
+  - Desacoplamiento de `PlayerScrollableContent.kt` en `PlayerHeaderArtSection.kt` y `PlayerLyricsSection.kt`.
 
 ---
 
-## 📌 Fase 4: Motor DSP Nativo C++ / Oboe & Ecualizador (Completado ✅)
+## 📌 Fase 5: Motor DSP Nativo C++ / Oboe & Ecualizador (Completado ✅)
 - [x] Estructura C++ NDK con `CMakeLists.txt` y `native-audio.cpp` vinculados a `MusicPlayerManager`.
 - [x] **Ecualizador Paramétrico de 5 Bandas**: Cálculo nativo C++ NDK de coeficientes de filtro Biquad peaking EQ ($b_0, b_1, b_2, a_1, a_2$) para procesamiento de hardware.
 - [x] **Visualizador de Curva de Respuesta en Frecuencia Rust**: Cálculo de atenuación/ganancia logarítmica (20Hz-20kHz) en Rust (`RustEqualizerEngine`) dibujado en Canvas con gradiente.
@@ -107,6 +114,6 @@ Este documento detalla la hoja de ruta y planificación futura para la evolució
 
 ---
 
-## 📌 Fase 5: Conectividad y Ecosistema 🌐
+## 📌 Fase 6: Conectividad y Ecosistema 🌐
 - [ ] Sincronización Wi-Fi P2P entre dispositivos (Android, PC, Tablet).
 - [ ] Soporte para Chromecast y Android Auto.

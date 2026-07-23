@@ -1,10 +1,14 @@
 package com.example.player
 
 import android.media.MediaPlayer
-import android.media.PlaybackParams
 import android.util.Log
-import com.example.data.ai.StemMode
+import com.example.player.controllers.PlaybackParamsController
 
+/**
+ * Motor DSP de Audio principal.
+ * Fachada modular que integra la librería C++ nativa Oboe NDK,
+ * delega los efectos de audio a [AudioFxManager] y los parámetros de reproducción a [PlaybackParamsController].
+ */
 class AudioDspEngine {
 
     companion object {
@@ -13,21 +17,18 @@ class AudioDspEngine {
         init {
             try {
                 System.loadLibrary("native-audio")
-                Log.i(TAG, "Native C++ Oboe Audio Engine loaded successfully")
+                Log.i(TAG, "Librería nativa C++ Oboe Audio Engine cargada exitosamente")
             } catch (e: UnsatisfiedLinkError) {
-                Log.w(TAG, "Native library native-audio not loaded, falling back to Android MediaPlayer DSP")
+                Log.w(TAG, "Librería nativa native-audio no disponible, usando fallback DSP Android MediaPlayer")
             }
         }
     }
 
     private val audioFxManager = AudioFxManager()
+    private val playbackParamsController = PlaybackParamsController()
 
-    private var currentSpeed: Float = 1.0f
-    private var currentPitch: Float = 1.0f
-
-    private var currentStemMode: StemMode = StemMode.ORIGINAL
     private var is3dAudioEnabled: Boolean = false
-    private var audio3dStrength: Short = 800 // 0 to 1000
+    private var audio3dStrength: Short = 800 // 0 a 1000
     private var audio3dSpeakerMode: Audio3dSpeakerMode = Audio3dSpeakerMode.DUAL_SPEAKER
 
     private var currentReverbEnvironment: SpatialReverbEnvironment = SpatialReverbEnvironment.OFF
@@ -36,7 +37,6 @@ class AudioDspEngine {
     fun attachEqualizer(audioSessionId: Int) {
         audioFxManager.attachEqualizer(
             audioSessionId = audioSessionId,
-            currentStemMode = currentStemMode,
             is3dAudioEnabled = is3dAudioEnabled,
             audio3dStrength = audio3dStrength,
             currentReverbEnvironment = currentReverbEnvironment,
@@ -68,28 +68,11 @@ class AudioDspEngine {
         audioFxManager.apply3dAudioFx(enabled, strength, mode)
     }
 
-    fun applyStemMode(mode: StemMode) {
-        currentStemMode = mode
-        audioFxManager.applyStemMode(mode)
-    }
-
     fun applyDspParams(mediaPlayer: MediaPlayer?, speed: Float, pitch: Float) {
-        currentSpeed = speed.coerceIn(0.25f, 2.0f)
-        currentPitch = pitch.coerceIn(0.25f, 2.0f)
-
-        mediaPlayer?.let { player ->
-            try {
-                val params: PlaybackParams = player.playbackParams ?: PlaybackParams()
-                params.speed = currentSpeed
-                params.pitch = currentPitch
-                player.playbackParams = params
-            } catch (e: Exception) {
-                Log.e(TAG, "Error applying PlaybackParams: ${e.message}")
-            }
-        }
+        playbackParamsController.applyParams(mediaPlayer, speed, pitch)
     }
 
     fun applyCustomEqBands(isEqEnabled: Boolean, bandGainsDb: FloatArray) {
-        audioFxManager.applyCustomEqBands(isEqEnabled, bandGainsDb, currentStemMode)
+        audioFxManager.applyCustomEqBands(isEqEnabled, bandGainsDb)
     }
 }

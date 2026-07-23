@@ -21,16 +21,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -76,6 +80,8 @@ fun LibraryScreen(
     onOpenFolderClick: (String) -> Unit = {},
     onScanDuplicatesClick: () -> Unit = {},
     onCleanTagsBatchClick: () -> Unit = {},
+    isVibeGenEnabled: Boolean = true,
+    onGenerateVibePlaylistClick: () -> Unit = {},
     getPlaylistTracks: @Composable (Long) -> List<TrackEntity> = { emptyList() },
     modifier: Modifier = Modifier
 ) {
@@ -195,6 +201,54 @@ fun LibraryScreen(
                         favoriteCount = favoriteTracks.size,
                         onClick = onOpenFavoritesClick
                     )
+                }
+            }
+
+            // Banner IA Generador Inteligente de Listas por Vibe
+            if (isVibeGenEnabled && (selectedFilter == "Todo" || selectedFilter == "Listas")) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .clickable { onGenerateVibePlaylistClick() },
+                        colors = CardDefaults.cardColors(containerColor = SpotifyGreen.copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = SpotifyGreen
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = SpotifyBlack,
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .size(20.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Generar Lista por Vibe / Ánimo",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = SpotifyTextWhite
+                                    )
+                                )
+                                Text(
+                                    text = "Crea mezclas inteligentes según tu estado de ánimo",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = SpotifyTextMuted
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
