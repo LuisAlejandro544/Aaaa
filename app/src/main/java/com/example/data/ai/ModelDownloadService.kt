@@ -42,7 +42,15 @@ class ModelDownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val initialNotification = buildNotification("Iniciando descarga de 4 modelos IA TFLite (~74.9 MB)...", 0, true)
-        startForeground(NOTIFICATION_ID, initialNotification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                initialNotification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, initialNotification)
+        }
 
         serviceScope.launch {
             StemModelManager.downloadAllModelsWithNotification(
